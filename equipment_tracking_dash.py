@@ -168,32 +168,41 @@ def load_data(file):
     # Calculate days onsite
     if 'Mobilization Date' in df.columns:
         df['Days Onsite'] = (datetime.now() - df['Mobilization Date']).dt.days
-        df['Days Onsite'] = df['Days Onsite'].clip(lower=0)
+        df['Days Onsite'] = df['Days Onsite'].clip(lower=0).fillna(0)
     
     # Calculate variance
     if 'Planned Duration (Days)' in df.columns and 'Days Onsite' in df.columns:
-        df['Duration Variance'] = df['Days Onsite'] - df['Planned Duration (Days)']
+        planned = pd.to_numeric(df['Planned Duration (Days)'], errors='coerce').fillna(0)
+        df['Duration Variance'] = df['Days Onsite'] - planned
     
     # Convert numeric columns
     if 'Unit Rate' in df.columns:
-        df['Unit Rate'] = pd.to_numeric(df['Unit Rate'], errors='coerce')
+        df['Unit Rate'] = pd.to_numeric(df['Unit Rate'], errors='coerce').fillna(0)
     if 'Quantity' in df.columns:
-        df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce')
+        df['Quantity'] = pd.to_numeric(df['Quantity'], errors='coerce').fillna(0)
     
     # Calculate total cost estimate
     if 'Unit Rate' in df.columns and 'Days Onsite' in df.columns and 'Billing Basis' in df.columns:
-        df['Estimated Total Cost'] = 0
+        df['Estimated Total Cost'] = 0.0
+        
         for idx, row in df.iterrows():
-            days = row['Days Onsite'] if pd.notnull(row['Days Onsite']) else 0
-            rate = row['Unit Rate'] if pd.notnull(row['Unit Rate']) else 0
-            
-            if pd.notnull(row['Billing Basis']):
-                if row['Billing Basis'] == 'Daily':
-                    df.at[idx, 'Estimated Total Cost'] = days * rate
-                elif row['Billing Basis'] == 'Weekly':
-                    df.at[idx, 'Estimated Total Cost'] = (days / 7) * rate
-                elif row['Billing Basis'] == 'Monthly':
-                    df.at[idx, 'Estimated Total Cost'] = (days / 30) * rate
+            try:
+                days = float(row['Days Onsite']) if pd.notnull(row['Days Onsite']) else 0
+                rate = float(row['Unit Rate']) if pd.notnull(row['Unit Rate']) else 0
+                
+                if pd.notnull(row['Billing Basis']) and days > 0 and rate > 0:
+                    billing_basis = str(row['Billing Basis']).lower()
+                    
+                    if 'daily' in billing_basis:
+                        df.at[idx, 'Estimated Total Cost'] = days * rate
+                    elif 'weekly' in billing_basis:
+                        df.at[idx, 'Estimated Total Cost'] = (days / 7) * rate
+                    elif 'monthly' in billing_basis:
+                        df.at[idx, 'Estimated Total Cost'] = (days / 30) * rate
+                    else:
+                        df.at[idx, 'Estimated Total Cost'] = days * rate
+            except:
+                df.at[idx, 'Estimated Total Cost'] = 0.0
     
     return df
 
@@ -202,9 +211,11 @@ def calculate_kpis(df):
     total_equipment = len(df)
     
     if 'Current Status' in df.columns:
-        active = len(df[df['Current Status'].str.contains('Active', case=False, na=False)])
-        idle = len(df[df['Current Status'].str.contains('Idle', case=False, na=False)])
-        maintenance = len(df[df['Current Status'].str.contains('Maintenance', case=False, na=False)])
+        # Convert to string and handle NaN values
+        status_series = df['Current Status'].astype(str).str.lower()
+        active = len(df[status_series.str.contains('active', na=False)])
+        idle = len(df[status_series.str.contains('idle', na=False)])
+        maintenance = len(df[status_series.str.contains('maintenance', na=False)])
     else:
         active = idle = maintenance = 0
     
@@ -213,12 +224,18 @@ def calculate_kpis(df):
     # Count alerts
     alerts = 0
     if 'Next Inspection Due' in df.columns:
-        overdue = df['Next Inspection Due'] < datetime.now()
-        alerts += overdue.sum()
+        try:
+            overdue = pd.to_datetime(df['Next Inspection Due'], errors='coerce') < datetime.now()
+            alerts += overdue.sum()
+        except:
+            pass
     
     if 'Duration Variance' in df.columns:
-        over_duration = df['Duration Variance'] > 7
-        alerts += over_duration.sum()
+        try:
+            over_duration = pd.to_numeric(df['Duration Variance'], errors='coerce') > 7
+            alerts += over_duration.sum()
+        except:
+            pass
     
     return {
         'total': total_equipment,
@@ -234,13 +251,16 @@ def create_status_chart(df):
     if 'Current Status' not in df.columns:
         return None
     
-    status_counts = df['Current Status'].value_counts()
+    # Convert to string and clean data
+    status_clean = df['Current Status'].astype(str).replace('nan', 'Unknown')
+    status_counts = status_clean.value_counts()
     
     colors = {
         'Active': '#2E7D32',
         'Idle': '#FF9800',
         'Under Maintenance': '#D32F2F',
-        'Demobilized': '#757575'
+        'Demobilized': '#757575',
+        'Unknown': '#BDBDBD'
     }
     
     fig = go.Figure(data=[go.Pie(
@@ -309,8 +329,14 @@ def create_timeline_chart(df):
                       'Planned Demob Date', 'Current Status']].copy()
     timeline_df = timeline_df.dropna(subset=['Mobilization Date'])
     
+    if len(timeline_df) == 0:
+        return None
+    
     # Use actual or planned demob date
     timeline_df['End Date'] = timeline_df['Planned Demob Date'].fillna(datetime.now() + timedelta(days=30))
+    
+    # Clean status column
+    timeline_df['Current Status'] = timeline_df['Current Status'].astype(str).replace('nan', 'Unknown')
     
     fig = px.timeline(
         timeline_df,
@@ -323,7 +349,8 @@ def create_timeline_chart(df):
             'Active': '#2E7D32',
             'Idle': '#FF9800',
             'Under Maintenance': '#D32F2F',
-            'Demobilized': '#757575'
+            'Demobilized': '#757575',
+            'Unknown': '#BDBDBD'
         }
     )
     
@@ -371,16 +398,28 @@ def create_category_chart(df):
 
 def generate_summary_report(df):
     """Generate summary report for download"""
-    summary = {
-        'Report Generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'Total Equipment': len(df),
-        'Active Equipment': len(df[df['Current Status'].str.contains('Active', case=False, na=False)]) if 'Current Status' in df.columns else 0,
-        'Total Vendors': df['Vendor'].nunique() if 'Vendor' in df.columns else 0,
-        'Total Estimated Cost': f"${df['Estimated Total Cost'].sum():,.2f}" if 'Estimated Total Cost' in df.columns else 0
-    }
-    
-    summary_df = pd.DataFrame([summary])
-    return summary_df
+    try:
+        active_count = 0
+        if 'Current Status' in df.columns:
+            status_series = df['Current Status'].astype(str).str.lower()
+            active_count = len(df[status_series.str.contains('active', na=False)])
+        
+        total_vendors = df['Vendor'].nunique() if 'Vendor' in df.columns else 0
+        total_cost = df['Estimated Total Cost'].sum() if 'Estimated Total Cost' in df.columns else 0
+        
+        summary = {
+            'Report Generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'Total Equipment': len(df),
+            'Active Equipment': active_count,
+            'Total Vendors': total_vendors,
+            'Total Estimated Cost': f"${total_cost:,.2f}"
+        }
+        
+        summary_df = pd.DataFrame([summary])
+        return summary_df
+    except Exception as e:
+        return pd.DataFrame([{'Report Generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+                              'Error': str(e)}])
 
 def main():
     # Header with Bird Construction branding
@@ -582,37 +621,54 @@ def main():
             if kpis['alerts'] > 0:
                 st.markdown("### ⚠️ Action Required")
                 
-                alert_items = []
-                
+                # Check for overdue inspections
                 if 'Next Inspection Due' in filtered_df.columns:
-                    overdue = filtered_df[filtered_df['Next Inspection Due'] < datetime.now()]
-                    if len(overdue) > 0:
-                        st.markdown(f"""
-                            <div class='alert-card'>
-                                <strong>🔴 {len(overdue)} equipment items have overdue inspections</strong>
-                            </div>
-                        """, unsafe_allow_html=True)
+                    try:
+                        inspection_dates = pd.to_datetime(filtered_df['Next Inspection Due'], errors='coerce')
+                        overdue_mask = inspection_dates < datetime.now()
+                        overdue = filtered_df[overdue_mask & inspection_dates.notna()]
                         
-                        with st.expander(f"View {len(overdue)} Overdue Inspections"):
-                            st.dataframe(
-                                overdue[['Equipment Description', 'Vendor', 'Next Inspection Due']],
-                                use_container_width=True
-                            )
+                        if len(overdue) > 0:
+                            st.markdown(f"""
+                                <div class='alert-card'>
+                                    <strong>🔴 {len(overdue)} equipment items have overdue inspections</strong>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            with st.expander(f"View {len(overdue)} Overdue Inspections"):
+                                display_cols = ['Equipment Description', 'Vendor', 'Next Inspection Due']
+                                available_cols = [col for col in display_cols if col in overdue.columns]
+                                if available_cols:
+                                    st.dataframe(
+                                        overdue[available_cols],
+                                        use_container_width=True
+                                    )
+                    except Exception as e:
+                        pass
                 
+                # Check for over duration items
                 if 'Duration Variance' in filtered_df.columns:
-                    over_duration = filtered_df[filtered_df['Duration Variance'] > 7]
-                    if len(over_duration) > 0:
-                        st.markdown(f"""
-                            <div class='alert-card'>
-                                <strong>🟡 {len(over_duration)} equipment items exceed planned duration by >7 days</strong>
-                            </div>
-                        """, unsafe_allow_html=True)
+                    try:
+                        variance_numeric = pd.to_numeric(filtered_df['Duration Variance'], errors='coerce')
+                        over_duration = filtered_df[variance_numeric > 7]
                         
-                        with st.expander(f"View {len(over_duration)} Over Duration Items"):
-                            st.dataframe(
-                                over_duration[['Equipment Description', 'Vendor', 'Duration Variance']],
-                                use_container_width=True
-                            )
+                        if len(over_duration) > 0:
+                            st.markdown(f"""
+                                <div class='alert-card'>
+                                    <strong>🟡 {len(over_duration)} equipment items exceed planned duration by >7 days</strong>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            with st.expander(f"View {len(over_duration)} Over Duration Items"):
+                                display_cols = ['Equipment Description', 'Vendor', 'Duration Variance']
+                                available_cols = [col for col in display_cols if col in over_duration.columns]
+                                if available_cols:
+                                    st.dataframe(
+                                        over_duration[available_cols],
+                                        use_container_width=True
+                                    )
+                    except Exception as e:
+                        pass
         
         # TAB 2: Vendor Analytics
         with tab2:
@@ -626,23 +682,26 @@ def main():
             if 'Vendor' in filtered_df.columns:
                 st.markdown("### 📊 Detailed Vendor Metrics")
                 
-                vendor_summary = filtered_df.groupby('Vendor').agg({
-                    'Equipment Description': 'count',
-                    'Estimated Total Cost': 'sum',
-                    'Days Onsite': 'mean'
-                }).reset_index()
-                
-                vendor_summary.columns = ['Vendor', 'Equipment Count', 'Total Cost', 'Avg Days Onsite']
-                vendor_summary = vendor_summary.sort_values('Total Cost', ascending=False)
-                
-                st.dataframe(
-                    vendor_summary.style.format({
-                        'Total Cost': '${:,.2f}',
-                        'Avg Days Onsite': '{:.1f}'
-                    }).background_gradient(subset=['Total Cost'], cmap='YlOrRd'),
-                    use_container_width=True,
-                    height=400
-                )
+                try:
+                    vendor_summary = filtered_df.groupby('Vendor', dropna=False).agg({
+                        'Equipment Description': 'count',
+                        'Estimated Total Cost': 'sum',
+                        'Days Onsite': 'mean'
+                    }).reset_index()
+                    
+                    vendor_summary.columns = ['Vendor', 'Equipment Count', 'Total Cost', 'Avg Days Onsite']
+                    vendor_summary = vendor_summary.sort_values('Total Cost', ascending=False)
+                    
+                    st.dataframe(
+                        vendor_summary.style.format({
+                            'Total Cost': '${:,.2f}',
+                            'Avg Days Onsite': '{:.1f}'
+                        }).background_gradient(subset=['Total Cost'], cmap='YlOrRd'),
+                        use_container_width=True,
+                        height=400
+                    )
+                except Exception as e:
+                    st.error(f"Unable to generate vendor summary: {str(e)}")
         
         # TAB 3: Timeline
         with tab3:
@@ -677,7 +736,9 @@ def main():
                 display_df = filtered_df[selected_columns].copy()
                 
                 if search:
-                    mask = display_df.astype(str).apply(
+                    # Convert all columns to string for searching
+                    search_df = display_df.astype(str)
+                    mask = search_df.apply(
                         lambda x: x.str.contains(search, case=False, na=False)
                     ).any(axis=1)
                     display_df = display_df[mask]
@@ -721,22 +782,27 @@ def main():
                 st.write("Performance metrics by vendor")
                 
                 if 'Vendor' in filtered_df.columns:
-                    vendor_summary = filtered_df.groupby('Vendor').agg({
-                        'Equipment Description': 'count',
-                        'Estimated Total Cost': 'sum',
-                        'Days Onsite': 'mean'
-                    }).reset_index()
-                    
-                    vendor_summary.columns = ['Vendor', 'Equipment Count', 'Total Cost', 'Avg Days Onsite']
-                    
-                    csv_vendor = vendor_summary.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download Vendor Report (CSV)",
-                        data=csv_vendor,
-                        file_name=f"vendor_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
+                    try:
+                        vendor_summary = filtered_df.groupby('Vendor', dropna=False).agg({
+                            'Equipment Description': 'count',
+                            'Estimated Total Cost': 'sum',
+                            'Days Onsite': 'mean'
+                        }).reset_index()
+                        
+                        vendor_summary.columns = ['Vendor', 'Equipment Count', 'Total Cost', 'Avg Days Onsite']
+                        
+                        csv_vendor = vendor_summary.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Vendor Report (CSV)",
+                            data=csv_vendor,
+                            file_name=f"vendor_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.warning("Vendor summary not available")
+                else:
+                    st.info("Vendor column not found in data")
             
             # Download 3: Summary Report
             with col3:
@@ -776,24 +842,37 @@ def main():
             # Download 5: Excel Format
             st.markdown("### 📊 Excel Format Export")
             
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                filtered_df.to_excel(writer, sheet_name='Equipment Data', index=False)
+            try:
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    filtered_df.to_excel(writer, sheet_name='Equipment Data', index=False)
+                    
+                    if 'Vendor' in filtered_df.columns:
+                        try:
+                            vendor_summary = filtered_df.groupby('Vendor', dropna=False).agg({
+                                'Equipment Description': 'count',
+                                'Estimated Total Cost': 'sum',
+                                'Days Onsite': 'mean'
+                            }).reset_index()
+                            vendor_summary.columns = ['Vendor', 'Equipment Count', 'Total Cost', 'Avg Days Onsite']
+                            vendor_summary.to_excel(writer, sheet_name='Vendor Summary', index=False)
+                        except:
+                            pass
+                    
+                    summary_df = generate_summary_report(filtered_df)
+                    summary_df.to_excel(writer, sheet_name='Executive Summary', index=False)
                 
-                if 'Vendor' in filtered_df.columns:
-                    vendor_summary.to_excel(writer, sheet_name='Vendor Summary', index=False)
+                excel_data = output.getvalue()
                 
-                summary_df.to_excel(writer, sheet_name='Executive Summary', index=False)
-            
-            excel_data = output.getvalue()
-            
-            st.download_button(
-                label="📥 Download Multi-Sheet Excel Report",
-                data=excel_data,
-                file_name=f"equipment_report_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
+                st.download_button(
+                    label="📥 Download Multi-Sheet Excel Report",
+                    data=excel_data,
+                    file_name=f"equipment_report_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.error(f"Error generating Excel file: {str(e)}")
     
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")
@@ -801,5 +880,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
