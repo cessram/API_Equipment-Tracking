@@ -13,59 +13,98 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with Bird Construction Colors
+# Custom CSS with Green Background, White/Yellow Tiles, Orange Highlights, Black Fonts
 st.markdown("""
     <style>
-    /* Main color scheme: Blue, Green, White, Yellow, Orange */
+    /* Main color scheme: Green Background, White/Yellow Tiles, Orange Highlights, Black Text */
     .stApp {
-        background-color: #FFFFFF;
+        background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
+    }
+    
+    /* All text black */
+    .stApp, .stApp * {
+        color: #000000 !important;
     }
     
     /* Headers */
     h1 {
-        color: #1B4D89 !important;
+        color: #000000 !important;
         font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(255,255,255,0.3);
     }
     
     h2, h3 {
-        color: #2E7D32 !important;
+        color: #000000 !important;
+        font-weight: 600;
     }
     
-    /* Metrics */
+    /* Metrics - White tiles */
+    [data-testid="stMetric"] {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: 2px solid #FFEB3B;
+    }
+    
     [data-testid="stMetricValue"] {
         font-size: 28px;
         font-weight: 700;
+        color: #000000 !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #000000 !important;
+        font-weight: 600;
     }
     
     /* Sidebar */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1B4D89 0%, #2E7D32 100%);
+        background: linear-gradient(180deg, #1B5E20 0%, #2E7D32 100%);
     }
     
     [data-testid="stSidebar"] * {
         color: white !important;
     }
     
-    /* Buttons */
+    /* Buttons - Orange */
     .stButton>button {
-        background-color: #FF9800;
-        color: white;
-        font-weight: 600;
+        background-color: #FF9800 !important;
+        color: #000000 !important;
+        font-weight: 700;
         border-radius: 8px;
-        border: none;
+        border: 2px solid #F57C00;
         padding: 0.5rem 1rem;
         transition: all 0.3s;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
     }
     
     .stButton>button:hover {
-        background-color: #F57C00;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        background-color: #F57C00 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     }
     
-    /* Tabs */
+    /* Download buttons */
+    .stDownloadButton>button {
+        background-color: #FF9800 !important;
+        color: #000000 !important;
+        font-weight: 700;
+        border-radius: 8px;
+        border: 2px solid #F57C00;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    
+    .stDownloadButton>button:hover {
+        background-color: #F57C00 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    
+    /* Tabs - Yellow */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background-color: #F5F5F5;
+        background-color: rgba(255, 255, 255, 0.9);
         padding: 8px;
         border-radius: 8px;
     }
@@ -73,78 +112,172 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         background-color: white;
         border-radius: 6px;
-        color: #1B4D89;
+        color: #000000 !important;
         font-weight: 600;
         padding: 8px 16px;
+        border: 2px solid transparent;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(90deg, #1B4D89 0%, #2E7D32 100%);
-        color: white !important;
+        background: linear-gradient(135deg, #FFEB3B 0%, #FFC107 100%) !important;
+        color: #000000 !important;
+        border: 2px solid #FF9800;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
     }
     
-    /* Cards */
+    /* Cards - White with yellow border */
     .metric-card {
         background: white;
         padding: 20px;
         border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border-left: 4px solid #2E7D32;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: 3px solid #FFEB3B;
         margin: 10px 0;
     }
     
+    .metric-card h3 {
+        color: #000000 !important;
+    }
+    
+    .metric-card p {
+        color: #000000 !important;
+    }
+    
+    /* Alert cards - Orange */
     .alert-card {
-        background: #FFF3E0;
+        background: #FF9800;
         padding: 15px;
         border-radius: 8px;
-        border-left: 4px solid #FF9800;
+        border: 3px solid #F57C00;
         margin: 10px 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .alert-card strong {
+        color: #000000 !important;
     }
     
     /* Success message */
     .success-box {
-        background: #E8F5E9;
+        background: #FFEB3B;
         padding: 15px;
         border-radius: 8px;
-        border-left: 4px solid #2E7D32;
-        color: #1B5E20;
-        font-weight: 600;
+        border: 3px solid #FFC107;
+        color: #000000 !important;
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
-    /* Download section */
+    /* Download section - Yellow to Orange gradient */
     .download-section {
         background: linear-gradient(135deg, #FFEB3B 0%, #FF9800 100%);
         padding: 20px;
         border-radius: 12px;
         margin: 20px 0;
+        border: 3px solid #F57C00;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+    
+    .download-section h2, .download-section p {
+        color: #000000 !important;
+    }
+    
+    /* Dataframe containers - White */
+    [data-testid="stDataFrame"] {
+        background-color: white;
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Expander - White */
+    [data-testid="stExpander"] {
+        background-color: white !important;
+        border: 2px solid #FFEB3B;
+        border-radius: 8px;
+    }
+    
+    /* Plotly charts - White background */
+    .js-plotly-plot {
+        background-color: white !important;
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: 2px solid #FFEB3B;
+    }
+    
+    /* Text input - White */
+    .stTextInput>div>div>input {
+        background-color: white;
+        color: #000000 !important;
+        border: 2px solid #FFEB3B;
+        border-radius: 6px;
+    }
+    
+    /* Multiselect - White */
+    .stMultiSelect>div>div {
+        background-color: white;
+        border: 2px solid #FFEB3B;
+    }
+    
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background-color: rgba(255, 255, 255, 0.95);
+        border: 2px solid #FFEB3B;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    /* Info boxes */
+    .stAlert {
+        background-color: #FFEB3B !important;
+        border: 2px solid #FFC107;
+        color: #000000 !important;
     }
     
     /* Status badges */
     .status-active {
-        background-color: #2E7D32;
-        color: white;
+        background-color: #4CAF50;
+        color: #000000;
         padding: 4px 12px;
         border-radius: 12px;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 12px;
+        border: 2px solid #2E7D32;
     }
     
     .status-idle {
         background-color: #FF9800;
-        color: white;
+        color: #000000;
         padding: 4px 12px;
         border-radius: 12px;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 12px;
+        border: 2px solid #F57C00;
     }
     
     .status-maintenance {
-        background-color: #D32F2F;
-        color: white;
+        background-color: #FFEB3B;
+        color: #000000;
         padding: 4px 12px;
         border-radius: 12px;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 12px;
+        border: 2px solid #FFC107;
+    }
+    
+    /* Markdown text on green background */
+    .element-container {
+        color: #000000 !important;
+    }
+    
+    /* Headers on green background - make them stand out */
+    div[data-testid="column"] h3 {
+        background-color: white;
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid #FFEB3B;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -256,9 +389,9 @@ def create_status_chart(df):
     status_counts = status_clean.value_counts()
     
     colors = {
-        'Active': '#2E7D32',
+        'Active': '#4CAF50',
         'Idle': '#FF9800',
-        'Under Maintenance': '#D32F2F',
+        'Under Maintenance': '#FFEB3B',
         'Demobilized': '#757575',
         'Unknown': '#BDBDBD'
     }
@@ -299,10 +432,11 @@ def create_vendor_chart(df):
         go.Bar(
             x=vendor_data['Vendor'],
             y=vendor_data['Total Cost'],
-            marker_color='#1B4D89',
+            marker_color='#FF9800',
             text=vendor_data['Equipment Count'],
             texttemplate='%{text} items',
             textposition='outside',
+            textfont=dict(color='#000000', size=12, family='Arial Black'),
             hovertemplate='<b>%{x}</b><br>Total Cost: $%{y:,.2f}<br>Equipment: %{text}<extra></extra>'
         )
     ])
@@ -346,9 +480,9 @@ def create_timeline_chart(df):
         color='Current Status',
         hover_data=['Vendor'],
         color_discrete_map={
-            'Active': '#2E7D32',
+            'Active': '#4CAF50',
             'Idle': '#FF9800',
-            'Under Maintenance': '#D32F2F',
+            'Under Maintenance': '#FFEB3B',
             'Demobilized': '#757575',
             'Unknown': '#BDBDBD'
         }
@@ -379,9 +513,10 @@ def create_category_chart(df):
         x=category_counts.values,
         y=category_counts.index,
         orientation='h',
-        marker_color='#2E7D32',
+        marker_color='#4CAF50',
         text=category_counts.values,
-        textposition='outside'
+        textposition='outside',
+        textfont=dict(color='#000000', size=12, family='Arial Black')
     )])
     
     fig.update_layout(
@@ -426,10 +561,10 @@ def main():
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
         st.markdown("""
-            <div style='text-align: center; padding: 20px;'>
-                <h1 style='color: #1B4D89; font-size: 42px; margin-bottom: 5px;'>🏗️ Bird Construction</h1>
-                <h2 style='color: #2E7D32; font-size: 24px; margin-top: 0;'>Equipment Tracking Dashboard</h2>
-                <p style='color: #666; font-size: 16px;'>API Early Works Project - Real-Time Monitoring</p>
+            <div style='text-align: center; padding: 20px; background: white; border-radius: 15px; border: 3px solid #FFEB3B; box-shadow: 0 6px 20px rgba(0,0,0,0.2); margin-bottom: 20px;'>
+                <h1 style='color: #000000; font-size: 42px; margin-bottom: 5px;'>🏗️ Bird Construction</h1>
+                <h2 style='color: #000000; font-size: 24px; margin-top: 0;'>Equipment Tracking Dashboard</h2>
+                <p style='color: #000000; font-size: 16px; font-weight: 600;'>API Early Works Project - Real-Time Monitoring</p>
             </div>
         """, unsafe_allow_html=True)
     
@@ -453,9 +588,9 @@ def main():
     # Main content
     if uploaded_file is None:
         st.markdown("""
-            <div style='text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #E3F2FD 0%, #E8F5E9 100%); border-radius: 12px; margin: 40px 0;'>
-                <h2 style='color: #1B4D89; margin-bottom: 20px;'>👈 Upload Your Equipment Data to Begin</h2>
-                <p style='color: #666; font-size: 18px;'>Upload your Excel or CSV file using the sidebar</p>
+            <div style='text-align: center; padding: 60px 20px; background: white; border-radius: 12px; border: 3px solid #FFEB3B; margin: 40px 0; box-shadow: 0 6px 20px rgba(0,0,0,0.2);'>
+                <h2 style='color: #000000; margin-bottom: 20px;'>👈 Upload Your Equipment Data to Begin</h2>
+                <p style='color: #000000; font-size: 18px; font-weight: 600;'>Upload your Excel or CSV file using the sidebar</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -465,32 +600,32 @@ def main():
         with col1:
             st.markdown("""
                 <div class='metric-card'>
-                    <h3 style='color: #1B4D89;'>📊 Real-Time KPIs</h3>
-                    <p style='color: #666;'>Track equipment status, costs, and utilization instantly</p>
+                    <h3 style='color: #000000;'>📊 Real-Time KPIs</h3>
+                    <p style='color: #000000; font-weight: 600;'>Track equipment status, costs, and utilization instantly</p>
                 </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown("""
-                <div class='metric-card'>
-                    <h3 style='color: #2E7D32;'>📈 Analytics</h3>
-                    <p style='color: #666;'>Vendor performance and cost breakdowns</p>
+                <div class='metric-card' style='background: #FFEB3B; border-color: #FFC107;'>
+                    <h3 style='color: #000000;'>📈 Analytics</h3>
+                    <p style='color: #000000; font-weight: 600;'>Vendor performance and cost breakdowns</p>
                 </div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown("""
-                <div class='metric-card'>
-                    <h3 style='color: #FF9800;'>⚠️ Alerts</h3>
-                    <p style='color: #666;'>Inspection due dates and duration tracking</p>
+                <div class='metric-card' style='background: #FF9800; border-color: #F57C00;'>
+                    <h3 style='color: #000000;'>⚠️ Alerts</h3>
+                    <p style='color: #000000; font-weight: 600;'>Inspection due dates and duration tracking</p>
                 </div>
             """, unsafe_allow_html=True)
         
         with col4:
             st.markdown("""
-                <div class='metric-card'>
-                    <h3 style='color: #FFEB3B;'>📥 Reports</h3>
-                    <p style='color: #666;'>Download detailed analytics and summaries</p>
+                <div class='metric-card' style='background: #FFEB3B; border-color: #FFC107;'>
+                    <h3 style='color: #000000;'>📥 Reports</h3>
+                    <p style='color: #000000; font-weight: 600;'>Download detailed analytics and summaries</p>
                 </div>
             """, unsafe_allow_html=True)
         
@@ -593,8 +728,9 @@ def main():
                     fig = go.Figure(data=[go.Pie(
                         labels=payment_counts.index,
                         values=payment_counts.values,
-                        marker=dict(colors=['#1B4D89', '#2E7D32', '#FF9800', '#FFEB3B']),
-                        hole=0.4
+                        marker=dict(colors=['#4CAF50', '#FFEB3B', '#FF9800', '#FFC107']),
+                        hole=0.4,
+                        textfont=dict(color='#000000', size=14, family='Arial Black')
                     )])
                     fig.update_layout(title='Equipment by Payment Type', height=350)
                     st.plotly_chart(fig, use_container_width=True)
@@ -604,9 +740,10 @@ def main():
                     fig = go.Figure(data=[go.Bar(
                         x=billing_counts.index,
                         y=billing_counts.values,
-                        marker_color='#2E7D32',
+                        marker_color='#FF9800',
                         text=billing_counts.values,
-                        textposition='outside'
+                        textposition='outside',
+                        textfont=dict(color='#000000', size=12, family='Arial Black')
                     )])
                     fig.update_layout(
                         title='Equipment by Billing Basis',
